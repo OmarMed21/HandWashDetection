@@ -5,11 +5,17 @@ import time
 torch.cuda.empty_cache()
 import numpy as np
 import math
+from datetime import datetime
+
+def unix_time2data(timestamp):
+    dt_object = datetime.fromtimestamp(timestamp)
+    formatted_date = dt_object.strftime("%Y-%m-%d %H:%M:%S")
+    return formatted_date
 
 class DetectWash:
     def __init__(self):
-        self.hand_wash_model = YOLO('best60.pt')
-        self.predction_filter_car_plate  = PredictionFilter(10)
+        self.hand_wash_model = YOLO('best80.pt')
+        self.predction_filter_car_plate  = PredictionFilter(50)
 
 
     def get_hand_wash_coor(self, frame, min_area=1500):
@@ -31,8 +37,11 @@ class Tracker:
         self.life_time = life_time
         self.thresh_add = thresh_add
         self.new_id = 0
+        self.poped_objects = []
 
     def update(self, new_rects):
+        self.poped_objects = []
+        self.delete_not_found_obj()
         if len(self.old_objects)==0:
             for new_rect in new_rects:
                 self.old_objects[self.new_id] = {"rect":new_rect, "not-found-times":0, "found":True, "start-time": time.time()}
@@ -62,7 +71,6 @@ class Tracker:
             self.old_objects[self.new_id] = {"rect":new_rect_not_found, "not-found-times":0, "found":True, "start-time": time.time()}
             self.new_id +=1
 
-        self.delete_not_found_obj()
         
         if len(self.old_objects)==0:
             self.new_id = 0
@@ -74,9 +82,12 @@ class Tracker:
         return np.sqrt((x2-x1)**2+(y2-y1)**2)
 
     def delete_not_found_obj(self):
+        # print("old", self.old_objects)
         for key in self.old_objects.copy().keys():
             if self.old_objects[key]["not-found-times"]>=self.life_time:
-                self.old_objects.pop(key)
+                self.poped_objects.append(self.old_objects.pop(key))
+        # print("new", self.old_objects)
+        
 
 
 class PredictionFilter:
@@ -138,34 +149,3 @@ class PredictionFilter:
             if (x2-x1)*(y2-y1)>threshold:
                 output.append([x1,y1,x2,y2])
         return output
-
-
-def is_valid_car_num(car_num:str):
-    splited_car_num = ["",""]
-    for char in car_num:
-        if char.isdigit():
-            splited_car_num[0] += char
-        else:
-            splited_car_num[1] +=char
-    num_len  = len(splited_car_num[0])
-    char_len = len(splited_car_num[1])
-    if car_num[:num_len] != splited_car_num[0]:
-        return False
-
-    if num_len > 4:
-        return False
-    
-    if char_len > 3:
-        return False
-
-    if char_len < 1 or num_len < 1:
-        return False
-    
-    return True
-
-def get_hkey(dict_):
-    return max(dict_, key=dict_.get)
-
-
-if __name__ == "__main__":
-    print(is_valid_car_num("1230fbst"))
