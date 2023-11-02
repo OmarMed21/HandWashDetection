@@ -3,7 +3,8 @@ from utiles import *
 def get_hkey(dict_):
     return max(dict_, key=dict_.get)
 
-cap = cv2.VideoCapture("test.mp4")
+# cap = cv2.VideoCapture("test.mp4")
+cap = cv2.VideoCapture(0)
 plates = {}
 detector = DetectWash()
 tracker = Tracker(15, 20)
